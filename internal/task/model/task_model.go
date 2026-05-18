@@ -21,6 +21,8 @@ type Task struct {
 	Status      TaskStatus `json:"status"`
 	Priority    int        `json:"priority"`
 
+	AssignedTo string `json:"assigned_to"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

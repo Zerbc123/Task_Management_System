@@ -3,10 +3,11 @@ package services
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"task-management/internal/task/dto"
 	"task-management/internal/task/model"
 	"task-management/internal/task/repository"
+
+	"github.com/google/uuid"
 )
 
 type TaskService interface {
@@ -41,6 +42,7 @@ func (s *taskService) CreateTask(req dto.CreateTaskRequest) (*model.Task, error)
 		Description: req.Description,
 		Status:      status,
 		Priority:    req.Priority,
+		AssignedTo:  req.AssignedTo,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -71,6 +73,7 @@ func (s *taskService) UpdateTask(id uuid.UUID, req dto.UpdateTaskRequest) (*mode
 	task.Description = req.Description
 	task.Status = req.Status
 	task.Priority = req.Priority
+	task.AssignedTo = req.AssignedTo
 	task.UpdatedAt = time.Now()
 
 	err = s.repo.Update(task)

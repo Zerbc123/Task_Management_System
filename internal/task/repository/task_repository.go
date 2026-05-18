@@ -3,8 +3,9 @@ package repository
 import (
 	"errors"
 
-	"github.com/google/uuid"
 	"task-management/internal/task/model"
+
+	"github.com/google/uuid"
 )
 
 var ErrTaskNotFound = errors.New("task not found")
