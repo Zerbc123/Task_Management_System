@@ -2,53 +2,69 @@ package services
 
 import (
 	"testing"
-	"task-management/internal/task/repository"
-	"task-management/internal/task/dto"
+
 	"github.com/google/uuid"
+
+	"task-management/internal/task/dto"
 	"task-management/internal/task/model"
+	memoryRepo "task-management/internal/task/repository/memory"
 )
 
 func TestCreateTask(t *testing.T) {
-	repo := repository.NewMemoryTaskRepository()
+	repo := memoryRepo.NewMemoryTaskRepository()
 	service := NewTaskService(repo)
 
+	projectID := uuid.New()
+	assigneeID := uuid.New()
+
 	req := dto.CreateTaskRequest{
+		ProjectID:   projectID,
 		Title:       "Learn Go",
 		Description: "Study unit test",
 		Status:      model.StatusTodo,
-		Priority:    3,
-		AssignedTo:  "Duy",
+		AssigneeID:  &assigneeID,
 	}
 
 	task, err := service.CreateTask(req)
 	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
+		t.Fatalf("expected no error, got %v", err)
 	}
 
 	if task.ID == uuid.Nil {
-		t.Fatalf("Expected task ID to be generated")
+		t.Fatalf("expected task ID to be generated")
+	}
+
+	if task.ProjectID != projectID {
+		t.Fatalf("expected project ID %s, got %s", projectID, task.ProjectID)
 	}
 
 	if task.Title != req.Title {
-		t.Errorf("Expected title %s, got %s", req.Title, task.Title)
+		t.Errorf("expected title %s, got %s", req.Title, task.Title)
 	}
 
-	if task.Status != model.StatusTodo{
-		t.Fatalf("Expected status TODO, got %s", task.Status)
+	if task.Status != model.StatusTodo {
+		t.Fatalf("expected status TODO, got %s", task.Status)
+	}
+
+	if task.AssigneeID == nil {
+		t.Fatalf("expected assignee ID, got nil")
+	}
+
+	if *task.AssigneeID != assigneeID {
+		t.Fatalf("expected assignee ID %s, got %s", assigneeID, *task.AssigneeID)
 	}
 }
 
 func TestGetTasks(t *testing.T) {
-	repo := repository.NewMemoryTaskRepository()
+	repo := memoryRepo.NewMemoryTaskRepository()
 	service := NewTaskService(repo)
 
 	_, err := service.CreateTask(dto.CreateTaskRequest{
+		ProjectID:   uuid.New(),
 		Title:       "Task 1",
 		Description: "Description 1",
 		Status:      model.StatusTodo,
-		Priority:    1,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,52 +75,72 @@ func TestGetTasks(t *testing.T) {
 	}
 
 	if len(tasks) != 1 {
-		t.Fatalf("Expected 1 task, got %d", len(tasks))
+		t.Fatalf("expected 1 task, got %d", len(tasks))
 	}
 }
 
 func TestUpdateTask(t *testing.T) {
-	repo := repository.NewMemoryTaskRepository()
+	repo := memoryRepo.NewMemoryTaskRepository()
 	service := NewTaskService(repo)
 
+	oldProjectID := uuid.New()
+	newProjectID := uuid.New()
+	assigneeID := uuid.New()
+
 	task, err := service.CreateTask(dto.CreateTaskRequest{
+		ProjectID:   oldProjectID,
 		Title:       "Old title",
 		Description: "Old description",
 		Status:      model.StatusTodo,
-		Priority:    1,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	updatedTask, err := service.UpdateTask(task.ID, dto.UpdateTaskRequest{
-		Title:       "New title",
-		Description: "New description",
-		Status:      model.StatusDone,
-		Priority:    3,
-	})
+	updatedTask, err := service.UpdateTask(
+		task.ID,
+		dto.UpdateTaskRequest{
+			ProjectID:   newProjectID,
+			Title:       "New title",
+			Description: "New description",
+			Status:      model.StatusDone,
+			AssigneeID:  &assigneeID,
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if updatedTask.ProjectID != newProjectID {
+		t.Fatalf("expected project ID %s, got %s", newProjectID, updatedTask.ProjectID)
 	}
 
 	if updatedTask.Title != "New title" {
-		t.Fatalf("Expected title 'New title', got '%s'", updatedTask.Title)
+		t.Fatalf("expected title 'New title', got '%s'", updatedTask.Title)
 	}
 
 	if updatedTask.Status != model.StatusDone {
-		t.Fatalf("Expected status DONE, got %s", updatedTask.Status)
+		t.Fatalf("expected status DONE, got %s", updatedTask.Status)
+	}
+
+	if updatedTask.AssigneeID == nil {
+		t.Fatalf("expected assignee ID, got nil")
+	}
+
+	if *updatedTask.AssigneeID != assigneeID {
+		t.Fatalf("expected assignee ID %s, got %s", assigneeID, *updatedTask.AssigneeID)
 	}
 }
 
 func TestDeleteTask(t *testing.T) {
-	repo := repository.NewMemoryTaskRepository()
+	repo := memoryRepo.NewMemoryTaskRepository()
 	service := NewTaskService(repo)
 
 	task, err := service.CreateTask(dto.CreateTaskRequest{
+		ProjectID:   uuid.New(),
 		Title:       "Task to delete",
 		Description: "Delete this task",
 		Status:      model.StatusTodo,
-		Priority:    2,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -117,6 +153,6 @@ func TestDeleteTask(t *testing.T) {
 
 	_, err = service.GetTaskByID(task.ID)
 	if err == nil {
-		t.Fatalf("Expected error when getting deleted task")
+		t.Fatalf("expected error when getting deleted task")
 	}
 }

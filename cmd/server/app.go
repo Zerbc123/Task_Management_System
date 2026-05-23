@@ -5,60 +5,54 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	categoryHandler "task-management/internal/task/handler"
-	categoryRepository "task-management/internal/task/repository"
-	categoryServices "task-management/internal/task/services"
+	authHandler "task-management/internal/auth/handler"
+	authServices "task-management/internal/auth/services"
 
+	"task-management/internal/database"
 	"task-management/internal/middleware"
+
+	projectHandler "task-management/internal/project/handler"
+	projectRepository "task-management/internal/project/repository"
+	projectServices "task-management/internal/project/services"
 
 	taskHandler "task-management/internal/task/handler"
 	taskRepository "task-management/internal/task/repository"
 	taskServices "task-management/internal/task/services"
+
+	userRepository "task-management/internal/user/repository"
 )
 
 func main() {
-	// Create Gin server
 	r := gin.New()
 
-	// Middleware
 	r.Use(middleware.RequestID())
 	r.Use(middleware.RequestLogger())
 	r.Use(middleware.Recovery())
 
-	// =========================
-	// TASK MODULE
-	// =========================
+	db := database.ConnectDB()
 
-	taskRepo := taskRepository.NewMemoryTaskRepository()
+	userRepo := userRepository.NewGormUserRepository(db)
 
+	authService := authServices.NewAuthService(userRepo)
+	authHandler := authHandler.NewAuthHandler(authService)
+	authHandler.RegisterRoutes(r)
+
+	taskRepo := taskRepository.NewGormTaskRepository(db)
 	taskService := taskServices.NewTaskService(taskRepo)
-
 	taskHandler := taskHandler.NewTaskHandler(taskService)
 
-	taskHandler.RegisterRoutes(r)
+	projectRepo := projectRepository.NewGormProjectRepository(db)
+	projectService := projectServices.NewProjectService(projectRepo)
+	projectHandler := projectHandler.NewProjectHandler(projectService)
 
-	// =========================
-	// CATEGORY MODULE
-	// =========================
+	protected := r.Group("/")
+	protected.Use(middleware.JWTAuth())
 
-	categoryRepo := categoryRepository.NewMemoryCategoryRepository()
+	projectHandler.RegisterRoutes(protected)
+	taskHandler.RegisterRoutes(protected)
 
-	categoryService := categoryServices.NewCategoryService(categoryRepo)
+	log.Println("server running at http://localhost:8080")
 
-	categoryHandler := categoryHandler.NewCategoryHandler(categoryService)
-
-	categoryHandler.RegisterRoutes(r)
-
-	// Health Check
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "Task Management API is running",
-		})
-	})
-
-	log.Println("Server running at http://localhost:8080")
-
-	// Start server
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)
 	}

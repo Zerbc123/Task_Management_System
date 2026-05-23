@@ -3,11 +3,11 @@ package services
 import (
 	"time"
 
+	"github.com/google/uuid"
+
 	"task-management/internal/task/dto"
 	"task-management/internal/task/model"
 	"task-management/internal/task/repository"
-
-	"github.com/google/uuid"
 )
 
 type TaskService interface {
@@ -38,17 +38,16 @@ func (s *taskService) CreateTask(req dto.CreateTaskRequest) (*model.Task, error)
 
 	task := &model.Task{
 		ID:          uuid.New(),
+		ProjectID:   req.ProjectID,
 		Title:       req.Title,
 		Description: req.Description,
 		Status:      status,
-		Priority:    req.Priority,
-		AssignedTo:  req.AssignedTo,
+		AssigneeID:  req.AssigneeID,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
-	err := s.repo.Create(task)
-	if err != nil {
+	if err := s.repo.Create(task); err != nil {
 		return nil, err
 	}
 
@@ -69,15 +68,21 @@ func (s *taskService) UpdateTask(id uuid.UUID, req dto.UpdateTaskRequest) (*mode
 		return nil, err
 	}
 
+	if req.ProjectID != uuid.Nil {
+		task.ProjectID = req.ProjectID
+	}
+
 	task.Title = req.Title
 	task.Description = req.Description
 	task.Status = req.Status
-	task.Priority = req.Priority
-	task.AssignedTo = req.AssignedTo
+	task.AssigneeID = req.AssigneeID
 	task.UpdatedAt = time.Now()
 
-	err = s.repo.Update(task)
-	if err != nil {
+	if task.Status == "" {
+		task.Status = model.StatusTodo
+	}
+
+	if err := s.repo.Update(task); err != nil {
 		return nil, err
 	}
 

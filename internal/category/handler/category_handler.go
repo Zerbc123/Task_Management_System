@@ -3,10 +3,10 @@ package handler
 import(
 	"errors"
 	
-	response "task-management/internal/response"
-	"task-management/internal/task/dto"
-	"task-management/internal/task/repository"
-	"task-management/internal/task/services"
+	response "task-management/internal/shared/response"
+	"task-management/internal/category/dto"
+	"task-management/internal/category/repository"
+	"task-management/internal/category/services"
 	"github.com/google/uuid"
 	"github.com/gin-gonic/gin"
 

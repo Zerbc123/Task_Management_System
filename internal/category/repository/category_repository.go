@@ -3,7 +3,7 @@ package repository
 import (
 	"errors"
 	"github.com/google/uuid"
-	"task-management/internal/task/model"
+	"task-management/internal/category/model"
 )
 
 var ErrCategoryNotFound = errors.New("category not found")

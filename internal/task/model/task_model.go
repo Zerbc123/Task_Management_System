@@ -15,13 +15,12 @@ const (
 )
 
 type Task struct {
-	ID          uuid.UUID  `json:"id"`
-	Title       string     `json:"title"`
+	ID          uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
+	ProjectID   uuid.UUID  `json:"project_id" gorm:"type:uuid;not null"`
+	Title       string     `json:"title" gorm:"not null"`
 	Description string     `json:"description"`
 	Status      TaskStatus `json:"status"`
-	Priority    int        `json:"priority"`
-
-	AssignedTo string `json:"assigned_to"`
+	AssigneeID  *uuid.UUID `json:"assignee_id,omitempty" gorm:"type:uuid"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

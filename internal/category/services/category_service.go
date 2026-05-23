@@ -1,9 +1,9 @@
 package services
 
 import (
-	"task-management/internal/task/dto"
-	"task-management/internal/task/model"
-	"task-management/internal/task/repository"
+	"task-management/internal/category/dto"
+	"task-management/internal/category/model"
+	"task-management/internal/category/repository"
 	"github.com/google/uuid"
 	"time"
 )
