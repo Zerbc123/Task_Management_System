@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	auditServices "task-management/internal/audit/services"
 	"task-management/internal/cache"
 	"task-management/internal/notification"
 	"task-management/internal/task/dto"
@@ -15,11 +16,11 @@ import (
 )
 
 type TaskService interface {
-	Create(ctx context.Context, req dto.CreateTaskRequest) (*model.Task, error)
+	Create(ctx context.Context, userID uuid.UUID, req dto.CreateTaskRequest) (*model.Task, error)
 	GetAll(ctx context.Context) ([]*model.Task, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*model.Task, error)
-	Update(ctx context.Context, id uuid.UUID, req dto.UpdateTaskRequest) (*model.Task, error)
-	Delete(ctx context.Context, id uuid.UUID) error
+	Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateTaskRequest) (*model.Task, error)
+	Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 }
 
 type taskService struct {
@@ -27,6 +28,7 @@ type taskService struct {
 	cache cache.Cache
 	queue notification.JobQueue
 	hub   *websocketHub.Hub
+	audit auditServices.AuditService
 }
 
 func NewTaskService(
@@ -34,16 +36,22 @@ func NewTaskService(
 	cache cache.Cache,
 	queue notification.JobQueue,
 	hub *websocketHub.Hub,
+	audit auditServices.AuditService,
 ) TaskService {
 	return &taskService{
 		repo:  repo,
 		cache: cache,
 		queue: queue,
 		hub:   hub,
+		audit: audit,
 	}
 }
 
-func (s *taskService) Create(ctx context.Context, req dto.CreateTaskRequest) (*model.Task, error) {
+func (s *taskService) Create(
+	ctx context.Context,
+	userID uuid.UUID,
+	req dto.CreateTaskRequest,
+) (*model.Task, error) {
 	now := time.Now()
 
 	status := req.Status
@@ -67,6 +75,17 @@ func (s *taskService) Create(ctx context.Context, req dto.CreateTaskRequest) (*m
 	}
 
 	s.cache.DeleteTaskList(ctx)
+
+	if s.audit != nil {
+		_ = s.audit.Log(
+			ctx,
+			userID,
+			task.ID,
+			"task",
+			"task.created",
+			"Created task "+task.Title,
+		)
+	}
 
 	if task.AssigneeID != nil {
 		if err := s.queue.Push(ctx, notification.NotificationJob{
@@ -113,11 +132,18 @@ func (s *taskService) GetByID(ctx context.Context, id uuid.UUID) (*model.Task, e
 	return task, nil
 }
 
-func (s *taskService) Update(ctx context.Context, id uuid.UUID, req dto.UpdateTaskRequest) (*model.Task, error) {
+func (s *taskService) Update(
+	ctx context.Context,
+	id uuid.UUID,
+	userID uuid.UUID,
+	req dto.UpdateTaskRequest,
+) (*model.Task, error) {
 	task, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
+
+	oldStatus := task.Status
 
 	if req.ProjectID != uuid.Nil {
 		task.ProjectID = req.ProjectID
@@ -146,6 +172,28 @@ func (s *taskService) Update(ctx context.Context, id uuid.UUID, req dto.UpdateTa
 	s.cache.DeleteTaskList(ctx)
 	s.cache.DeleteTaskByID(ctx, id)
 
+	if s.audit != nil {
+		_ = s.audit.Log(
+			ctx,
+			userID,
+			task.ID,
+			"task",
+			"task.updated",
+			"Updated task "+task.Title,
+		)
+
+		if oldStatus != task.Status {
+			_ = s.audit.Log(
+				ctx,
+				userID,
+				task.ID,
+				"task",
+				"task.status_updated",
+				string(oldStatus)+" -> "+string(task.Status),
+			)
+		}
+	}
+
 	if s.hub != nil {
 		s.hub.BroadcastJSON(websocketHub.TaskUpdatedEvent{
 			Type:   "task.updated",
@@ -170,13 +218,33 @@ func (s *taskService) Update(ctx context.Context, id uuid.UUID, req dto.UpdateTa
 	return task, nil
 }
 
-func (s *taskService) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *taskService) Delete(
+	ctx context.Context,
+	id uuid.UUID,
+	userID uuid.UUID,
+) error {
+	task, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return err
 	}
 
 	s.cache.DeleteTaskList(ctx)
 	s.cache.DeleteTaskByID(ctx, id)
+
+	if s.audit != nil {
+		_ = s.audit.Log(
+			ctx,
+			userID,
+			task.ID,
+			"task",
+			"task.deleted",
+			"Deleted task "+task.Title,
+		)
+	}
 
 	return nil
 }

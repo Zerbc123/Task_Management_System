@@ -10,6 +10,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	auditModel "task-management/internal/audit/model"
 	commentModel "task-management/internal/comment/model"
 	projectModel "task-management/internal/project/model"
 	taskModel "task-management/internal/task/model"
@@ -42,6 +43,7 @@ func ConnectDB() *gorm.DB {
 		&projectModel.Project{},
 		&taskModel.Task{},
 		&commentModel.Comment{},
+		&auditModel.AuditLog{},
 	)
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)

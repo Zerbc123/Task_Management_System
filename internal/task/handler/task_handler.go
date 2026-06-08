@@ -34,8 +34,15 @@ func (h *TaskHandler) RegisterRoutes(r *gin.RouterGroup) {
 }
 
 func (h *TaskHandler) CreateTask(c *gin.Context) {
-	var req dto.CreateTaskRequest
+	userID, ok := getUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
 
+	var req dto.CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -43,7 +50,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	task, err := h.service.Create(c.Request.Context(), req)
+	task, err := h.service.Create(c.Request.Context(), userID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -85,6 +92,14 @@ func (h *TaskHandler) GetTaskByID(c *gin.Context) {
 }
 
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
+	userID, ok := getUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -94,7 +109,6 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	}
 
 	var req dto.UpdateTaskRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -102,7 +116,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	task, err := h.service.Update(c.Request.Context(), id, req)
+	task, err := h.service.Update(c.Request.Context(), id, userID, req)
 	if err != nil {
 		handleError(c, err)
 		return
@@ -112,6 +126,14 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
+	userID, ok := getUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -120,7 +142,7 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Delete(c.Request.Context(), id); err != nil {
+	if err := h.service.Delete(c.Request.Context(), id, userID); err != nil {
 		handleError(c, err)
 		return
 	}
@@ -141,4 +163,18 @@ func handleError(c *gin.Context, err error) {
 	c.JSON(http.StatusInternalServerError, gin.H{
 		"error": err.Error(),
 	})
+}
+
+func getUserID(c *gin.Context) (uuid.UUID, bool) {
+	value, exists := c.Get("user_id")
+	if !exists {
+		return uuid.Nil, false
+	}
+
+	userID, ok := value.(uuid.UUID)
+	if !ok {
+		return uuid.Nil, false
+	}
+
+	return userID, true
 }

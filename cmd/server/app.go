@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +10,10 @@ import (
 	"task-management/internal/health"
 	"task-management/internal/middleware"
 	"task-management/internal/notification"
+
+	auditHandler "task-management/internal/audit/handler"
+	auditRepository "task-management/internal/audit/repository"
+	auditServices "task-management/internal/audit/services"
 
 	authHandler "task-management/internal/auth/handler"
 	authServices "task-management/internal/auth/services"
@@ -33,8 +36,6 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
-
 	r := gin.New()
 
 	r.Use(middleware.RequestID())
@@ -55,10 +56,9 @@ func main() {
 
 	notificationQueue := notification.NewQueue(redisClient)
 
-	// Nếu đã chạy worker bằng cmd/worker hoặc Docker service task-worker,
-	// thì KHÔNG nên start worker trong API nữa.
-	notificationWorker := notification.NewWorker(notificationQueue)
-	go notificationWorker.Start(ctx)
+	auditRepo := auditRepository.NewGormAuditRepository(db)
+	auditService := auditServices.NewAuditService(auditRepo)
+	auditHandler := auditHandler.NewAuditHandler(auditService)
 
 	userRepo := userRepository.NewGormUserRepository(db)
 	authService := authServices.NewAuthService(userRepo)
@@ -71,6 +71,7 @@ func main() {
 		redisCache,
 		notificationQueue,
 		wsHub,
+		auditService,
 	)
 	taskHandler := taskHandler.NewTaskHandler(taskService)
 
@@ -88,6 +89,7 @@ func main() {
 	projectHandler.RegisterRoutes(protected)
 	taskHandler.RegisterRoutes(protected)
 	commentHandler.RegisterRoutes(protected)
+	auditHandler.RegisterRoutes(protected)
 
 	log.Println("server running at http://localhost:8080")
 
