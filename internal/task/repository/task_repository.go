@@ -1,19 +1,20 @@
 package repository
 
 import (
+	"context"
 	"errors"
 
-	"task-management/internal/task/model"
-
 	"github.com/google/uuid"
+
+	"task-management/internal/task/model"
 )
 
 var ErrTaskNotFound = errors.New("task not found")
 
 type TaskRepository interface {
-	Create(task *model.Task) error
-	GetAll() ([]*model.Task, error)
-	GetByID(id uuid.UUID) (*model.Task, error)
-	Update(task *model.Task) error
-	Delete(id uuid.UUID) error
+	Create(ctx context.Context, task *model.Task) error
+	GetAll(ctx context.Context) ([]*model.Task, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*model.Task, error)
+	Update(ctx context.Context, task *model.Task) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }

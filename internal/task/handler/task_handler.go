@@ -2,11 +2,11 @@ package handler
 
 import (
 	"errors"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"task-management/internal/shared/response"
 	"task-management/internal/task/dto"
 	"task-management/internal/task/repository"
 	"task-management/internal/task/services"
@@ -22,11 +22,11 @@ func NewTaskHandler(service services.TaskService) *TaskHandler {
 	}
 }
 
-func (h *TaskHandler) RegisterRoutes(r gin.IRouter) {
+func (h *TaskHandler) RegisterRoutes(r *gin.RouterGroup) {
 	tasks := r.Group("/tasks")
 	{
 		tasks.POST("", h.CreateTask)
-		tasks.GET("", h.GetTasks)
+		tasks.GET("", h.GetAllTasks)
 		tasks.GET("/:id", h.GetTaskByID)
 		tasks.PUT("/:id", h.UpdateTask)
 		tasks.DELETE("/:id", h.DeleteTask)
@@ -37,87 +37,108 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	var req dto.CreateTaskRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 
-	task, err := h.service.CreateTask(req)
+	task, err := h.service.Create(c.Request.Context(), req)
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 
-	response.Created(c, "task created successfully", task)
+	c.JSON(http.StatusCreated, task)
 }
 
-func (h *TaskHandler) GetTasks(c *gin.Context) {
-	tasks, err := h.service.GetTasks()
+func (h *TaskHandler) GetAllTasks(c *gin.Context) {
+	tasks, err := h.service.GetAll(c.Request.Context())
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 
-	response.OK(c, "tasks retrieved successfully", tasks)
+	c.JSON(http.StatusOK, tasks)
 }
 
 func (h *TaskHandler) GetTaskByID(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		response.BadRequest(c, "invalid task id")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid task id",
+		})
 		return
 	}
 
-	task, err := h.service.GetTaskByID(id)
+	task, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		handleTaskError(c, err)
+		handleError(c, err)
 		return
 	}
 
-	response.OK(c, "task retrieved successfully", task)
+	c.JSON(http.StatusOK, task)
 }
 
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		response.BadRequest(c, "invalid task id")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid task id",
+		})
 		return
 	}
 
 	var req dto.UpdateTaskRequest
+
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 
-	task, err := h.service.UpdateTask(id, req)
+	task, err := h.service.Update(c.Request.Context(), id, req)
 	if err != nil {
-		handleTaskError(c, err)
+		handleError(c, err)
 		return
 	}
 
-	response.OK(c, "task updated successfully", task)
+	c.JSON(http.StatusOK, task)
 }
 
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		response.BadRequest(c, "invalid task id")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid task id",
+		})
 		return
 	}
 
-	if err := h.service.DeleteTask(id); err != nil {
-		handleTaskError(c, err)
+	if err := h.service.Delete(c.Request.Context(), id); err != nil {
+		handleError(c, err)
 		return
 	}
 
-	response.OK(c, "task deleted successfully", nil)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "task deleted successfully",
+	})
 }
 
-func handleTaskError(c *gin.Context, err error) {
+func handleError(c *gin.Context, err error) {
 	if errors.Is(err, repository.ErrTaskNotFound) {
-		response.NotFound(c, err.Error())
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "task not found",
+		})
 		return
 	}
 
-	response.InternalServerError(c, err.Error())
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"error": err.Error(),
+	})
 }

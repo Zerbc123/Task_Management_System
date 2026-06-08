@@ -53,3 +53,11 @@ func NotFound(c *gin.Context, message string) {
 func InternalServerError(c *gin.Context, message string) {
 	Error(c, http.StatusInternalServerError, message)
 }
+
+func Forbidden(c *gin.Context, message string) {
+	c.JSON(403, gin.H{
+		"Success": false,
+		"Message": message,
+		"Data":    nil,
+	})
+}

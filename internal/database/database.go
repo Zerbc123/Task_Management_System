@@ -9,17 +9,19 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	commentModel "task-management/internal/comment/model"
+	projectModel "task-management/internal/project/model"
+	taskModel "task-management/internal/task/model"
+	userModel "task-management/internal/user/model"
 )
 
 func ConnectDB() *gorm.DB {
-
-	// Load environment variables
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("failed to load .env file")
+		log.Println(".env file not found, using system environment variables")
 	}
 
-	// Build database connection string
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		os.Getenv("DB_HOST"),
@@ -30,13 +32,23 @@ func ConnectDB() *gorm.DB {
 		os.Getenv("DB_SSLMODE"),
 	)
 
-	// Connect PostgreSQL
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("failed to connect database:", err)
 	}
 
+	err = db.AutoMigrate(
+		&userModel.User{},
+		&projectModel.Project{},
+		&taskModel.Task{},
+		&commentModel.Comment{},
+	)
+	if err != nil {
+		log.Fatal("failed to migrate database:", err)
+	}
+
 	log.Println("database connected")
+	log.Println("database migrated")
 
 	return db
 }

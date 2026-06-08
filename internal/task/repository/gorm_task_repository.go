@@ -1,10 +1,13 @@
 package repository
 
 import (
-	"gorm.io/gorm"
-	"task-management/internal/task/model"
-	"github.com/google/uuid"
+	"context"
 	"errors"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"task-management/internal/task/model"
 )
 
 type gormTaskRepository struct {
@@ -17,31 +20,40 @@ func NewGormTaskRepository(db *gorm.DB) TaskRepository {
 	}
 }
 
-func (r *gormTaskRepository) Create(task *model.Task) error {
-	return r.db.Create(task).Error
+func (r *gormTaskRepository) Create(ctx context.Context, task *model.Task) error {
+	return r.db.WithContext(ctx).Create(task).Error
 }
 
-func (r *gormTaskRepository) GetAll() ([]*model.Task, error) {
+func (r *gormTaskRepository) GetAll(ctx context.Context) ([]*model.Task, error) {
 	var tasks []*model.Task
-	err := r.db.Find(&tasks).Error
+
+	err := r.db.WithContext(ctx).
+		Find(&tasks).Error
+
 	return tasks, err
 }
 
-func (r *gormTaskRepository) GetByID(id uuid.UUID) (*model.Task, error) {
+func (r *gormTaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Task, error) {
 	var task model.Task
-	err := r.db.First(&task, "id = ?", id).Error
+
+	err := r.db.WithContext(ctx).
+		First(&task, "id = ?", id).Error
+
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrTaskNotFound
 	}
+
 	return &task, nil
 }
 
-func (r *gormTaskRepository) Update(task *model.Task) error {
-	return r.db.Save(task).Error
+func (r *gormTaskRepository) Update(ctx context.Context, task *model.Task) error {
+	return r.db.WithContext(ctx).Save(task).Error
 }
 
-func (r *gormTaskRepository) Delete(id uuid.UUID) error {
-	result :=  r.db.Delete(&model.Task{}, "id = ?", id)
+func (r *gormTaskRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	result := r.db.WithContext(ctx).
+		Delete(&model.Task{}, "id = ?", id)
+
 	if result.RowsAffected == 0 {
 		return ErrTaskNotFound
 	}

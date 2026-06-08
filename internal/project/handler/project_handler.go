@@ -82,6 +82,12 @@ func (h *ProjectHandler) GetProjectByID(c *gin.Context) {
 }
 
 func (h *ProjectHandler) UpdateProject(c *gin.Context) {
+	userID, ok := getUserID(c)
+	if !ok {
+		response.BadRequest(c, "invalid user id")
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		response.BadRequest(c, "invalid project id")
@@ -94,7 +100,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 		return
 	}
 
-	project, err := h.service.UpdateProject(id, req)
+	project, err := h.service.UpdateProject(id, userID, req)
 	if err != nil {
 		handleProjectError(c, err)
 		return
@@ -104,13 +110,19 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 }
 
 func (h *ProjectHandler) DeleteProject(c *gin.Context) {
+	userID, ok := getUserID(c)
+	if !ok {
+		response.BadRequest(c, "invalid user id")
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		response.BadRequest(c, "invalid project id")
 		return
 	}
 
-	if err := h.service.DeleteProject(id); err != nil {
+	if err := h.service.DeleteProject(id, userID); err != nil {
 		handleProjectError(c, err)
 		return
 	}
@@ -121,6 +133,11 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 func handleProjectError(c *gin.Context, err error) {
 	if errors.Is(err, repository.ErrProjectNotFound) {
 		response.NotFound(c, err.Error())
+		return
+	}
+
+	if errors.Is(err, services.ErrForbidden) {
+		response.Forbidden(c, err.Error())
 		return
 	}
 

@@ -1,10 +1,12 @@
 package memory
 
 import (
-	"task-management/internal/task/model"
-	"task-management/internal/task/repository"
+	"context"
 
 	"github.com/google/uuid"
+
+	"task-management/internal/task/model"
+	"task-management/internal/task/repository"
 )
 
 type memoryTaskRepository struct {
@@ -17,12 +19,19 @@ func NewMemoryTaskRepository() repository.TaskRepository {
 	}
 }
 
-func (r *memoryTaskRepository) Create(task *model.Task) error {
+func (r *memoryTaskRepository) Create(
+	ctx context.Context,
+	task *model.Task,
+) error {
+
 	r.tasks[task.ID] = task
+
 	return nil
 }
 
-func (r *memoryTaskRepository) GetAll() ([]*model.Task, error) {
+func (r *memoryTaskRepository) GetAll(
+	ctx context.Context,
+) ([]*model.Task, error) {
 
 	tasks := make([]*model.Task, 0)
 
@@ -33,7 +42,10 @@ func (r *memoryTaskRepository) GetAll() ([]*model.Task, error) {
 	return tasks, nil
 }
 
-func (r *memoryTaskRepository) GetByID(id uuid.UUID) (*model.Task, error) {
+func (r *memoryTaskRepository) GetByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*model.Task, error) {
 
 	task, ok := r.tasks[id]
 
@@ -44,7 +56,10 @@ func (r *memoryTaskRepository) GetByID(id uuid.UUID) (*model.Task, error) {
 	return task, nil
 }
 
-func (r *memoryTaskRepository) Update(task *model.Task) error {
+func (r *memoryTaskRepository) Update(
+	ctx context.Context,
+	task *model.Task,
+) error {
 
 	_, ok := r.tasks[task.ID]
 
@@ -57,7 +72,10 @@ func (r *memoryTaskRepository) Update(task *model.Task) error {
 	return nil
 }
 
-func (r *memoryTaskRepository) Delete(id uuid.UUID) error {
+func (r *memoryTaskRepository) Delete(
+	ctx context.Context,
+	id uuid.UUID,
+) error {
 
 	_, ok := r.tasks[id]
 
